@@ -20,7 +20,7 @@ def main():
     # assign random weights to edges
     for graph in graphs:
         for (u, v) in graph.edges():
-            graph.edges[u, v]['weight'] = random.randint(1, 15)
+            graph.edges[u, v]['weight'] = random.randint(1, 30)
 
     # visualize generated graphs
     '''for graph in graphs:
@@ -35,8 +35,9 @@ def main():
         plt.savefig(str(graph.number_of_nodes()) + ' nodes.png')
     '''
     # solving and synthetic testing
-    #print(bruteforce(graphs[5], 1))
-    ant_colony(graphs[0], 0)
+    print(bruteforce(graphs[5], 0))
+    ant_colony(graphs[5], 0, number_of_ants=9, alpha=0.2)
+    print(graphs[5].edges.data())
 
 
 def bruteforce(graph: nx.Graph, start_and_end_node):
@@ -89,7 +90,7 @@ def ant_colony(graph: nx.Graph, start_and_end_node, number_of_ants=3, alpha=1, b
                pheromone_evaporation_coefficient=0.2, pheromone_by_ant_coefficient=1):
     """
     One critical restriction is required for this algorithm: a graph must be complete.
-    Every ant finds a Hamiltonian path leaving pheromone on an edge after every iteration.
+    Every ant finds a Hamiltonian path leaving pheromone on the edge after every iteration.
     """
 
     # copy the original graph so we can add some info to nodes and edges.
@@ -100,68 +101,123 @@ def ant_colony(graph: nx.Graph, start_and_end_node, number_of_ants=3, alpha=1, b
 
     # create ants
     ants_current_nodes = np.random.choice(graph.number_of_nodes(), number_of_ants, replace=False)
+    start_and_end_nodes = ants_current_nodes.copy()
     print(ants_current_nodes)
 
-    # list of sets. Each set controls nodes that are left for a particular ant
+    # list of lists. Each list has nodes that are left for a particular ant
     ants_nodes_left = []
-    for ant_node in ants_current_nodes:
-        nodes_left = set(graph.nodes)
-        nodes_left.remove(ant_node)
+    for _ in ants_current_nodes:
+        nodes_left = list(graph.nodes).copy()
         ants_nodes_left.append(nodes_left)
 
-    probability_table_for_every_ant = []
-    ants_next_nodes = []
+    for epoch in range(len(graph.nodes)):
+        # We need to return to our source node. So, we have to add it at the last iteration.
+        if epoch == len(graph.nodes) - 1:
+            for i, nodes_left in enumerate(ants_nodes_left):
+                nodes_left.append(start_and_end_nodes[i])
 
-    for ant in ants_current_nodes:
-        ant_neighbors = [n for n in graph.neighbors(ant)]
-        aggregated_pheromone_for_all_neighbors = np.array([graph.get_edge_data(ant, next_node)['pheromone'] for next_node in ant_neighbors])
-        probability_for_neighbors = []
+        # if an ant moved to a new node - we remove it
+        for i, nodes_left in enumerate(ants_nodes_left):
+            print(ants_current_nodes[i])
+            nodes_left.remove(ants_current_nodes[i])
 
-        for neighbor in ant_neighbors:
-            # Heuristic for state transition. Usually, it's 1/d, where d is the Euclidean distance to the next node.
-            # But as we have no Euclidean distance determined in this task we just put it to be 1.
-            eta = 1
+        probability_table_for_every_ant = []
+        ants_next_nodes = []
 
-            # Attractiveness of the next node based on the pheromone.
-            tau = graph.get_edge_data(ant, neighbor)['pheromone']
+        for i, ant_node in enumerate(ants_current_nodes):
+            ant_neighbors = ants_nodes_left[i]
+            pheromone_for_all_neighbors_left = np.array(
+                [graph.get_edge_data(ant_node, next_node)['pheromone'] for next_node in ant_neighbors]
+            )
+            weight_for_all_neighbors_left = np.array(
+                [graph.get_edge_data(ant_node, next_node)['weight'] for next_node in ant_neighbors]
+            )
+            denominator = np.sum(np.multiply(pheromone_for_all_neighbors_left ** alpha,
+                                             1 / weight_for_all_neighbors_left ** beta))
 
-            numerator = tau ** alpha * eta ** beta
-            denominator = np.sum(aggregated_pheromone_for_all_neighbors**alpha * tau**beta)
-            probability_to_move_to_this_neighbor = numerator / denominator
+            probability_for_neighbors = []
 
-            probability_for_neighbors.append(probability_to_move_to_this_neighbor)
+            for neighbor in ant_neighbors:
+                # Attractiveness of the next node based on the weight of the edge.
+                eta = 1 / graph.get_edge_data(ant_node, neighbor)['weight']
 
-        # Store all important information in the following format: (current node (ant), neighbors : their probabilities).
-        # It must be done to guarantee that it works even if graph.neighbors(ant) returns an unordered list.
-        info_of_ant = (ant, dict(zip(ant_neighbors, probability_for_neighbors)))
-        probability_table_for_every_ant.append(info_of_ant)
-        print(info_of_ant)
+                # Attractiveness of the next node based on the pheromone.
+                tau = graph.get_edge_data(ant_node, neighbor)['pheromone']
 
-        next_node = np.random.choice(ant_neighbors, 1, p=probability_for_neighbors)[0]
-        print(next_node)
-        ants_next_nodes.append(next_node)
+                numerator = tau ** alpha * eta ** beta
+                probability_to_move_to_this_neighbor = numerator / denominator
+
+                probability_for_neighbors.append(probability_to_move_to_this_neighbor)
+
+            # Store all important information in the following format: (current node (ant), neighbors : their probabilities).
+            # It must be done to guarantee that it works even if graph.neighbors(ant) returns an unordered list.
+            info_of_ant = (ant_node, dict(zip(ant_neighbors, probability_for_neighbors)))
+            probability_table_for_every_ant.append(info_of_ant)
+            print(info_of_ant)
+
+            if epoch == len(graph.nodes) - 1:
+                break
+
+            next_node = np.random.choice(ant_neighbors, 1, p=probability_for_neighbors)[0]
+            print(next_node)
+            ants_next_nodes.append(next_node)
+
+        # Global update of pheromones.
+
+        # If there's no more nodes left - we quit.
+        if epoch == len(graph.nodes) - 1:
+            break
+
+        # evaporation on all edges
+        print(graph.edges.data('pheromone'))
+        for i in range(len(graph.nodes)):
+            for j in range(i + 1, len(graph.nodes)):
+                graph.get_edge_data(i, j)['pheromone'] *= 1 - pheromone_evaporation_coefficient
+        print(graph.edges.data('pheromone'))
+
+        # add pheromone to an edge which was chosen by an ant
+        for i in range(len(ants_current_nodes)):
+            edge = graph.get_edge_data(ants_current_nodes[i], ants_next_nodes[i])
+            edge['pheromone'] += pheromone_by_ant_coefficient / edge['weight']
+        print(graph.edges.data('pheromone'))
+
+        ants_current_nodes = ants_next_nodes
 
 
-    # Global update of pheromones.
 
-    # evaporation on all edges
-    print(graph.edges.data('pheromone'))
+    # Choose the best path with naive greedy traveling salesman problem algorithm using pheromone as weights.
+    nodes_left = list(graph.nodes).copy()
+    best_path = []
+    best_path_length = 0
+    pheromone_collected=0
+    current_node = start_and_end_node
+
     for i in range(len(graph.nodes)):
-        for j in range(i + 1, len(graph.nodes)):
-            graph.get_edge_data(i, j)['pheromone'] *= 1 - pheromone_evaporation_coefficient
-    print(graph.edges.data('pheromone'))
+        # remove node as we visit it
+        nodes_left.remove(current_node)
 
-    # add pheromone to an edge which was chosen by an ant
-    for i in range(len(ants_current_nodes)):
-        edge = graph.get_edge_data(ants_current_nodes[i], ants_next_nodes[i])
-        edge['pheromone'] += pheromone_by_ant_coefficient / edge['weight']
-    print(graph.edges.data('pheromone'))
+        best_path.append(current_node)
 
+        if len(nodes_left) == 0:
+            best_path.append(start_and_end_node)
+            best_path_length += graph.get_edge_data(current_node, start_and_end_node)['weight']
+            pheromone_collected += graph.get_edge_data(current_node, start_and_end_node)['pheromone']
+            break
 
+        # (candidate_node, {weight:x, pheromone:y})
+        candidate_nodes_and_edges = []
+        for candidate_for_next_node in nodes_left:
+            edge = graph.get_edge_data(current_node, candidate_for_next_node)
+            candidate_nodes_and_edges.append((candidate_for_next_node, edge))
 
-def ant_colony_helper(graph: nx.Graph, start_and_end_node, number_of_ants, alpha, beta,
-               pheromone_evaporation_coefficient, pheromone_by_ant_coefficient):
-    pass
+        next_node, edge = max(candidate_nodes_and_edges, key=lambda t: t[1]["pheromone"])
+        print(next_node)
+        best_path_length += edge['weight']
+        pheromone_collected += edge['pheromone']
+        current_node = next_node
+
+    print(best_path_length, best_path, pheromone_collected)
+    return best_path_length, best_path, pheromone_collected
 
 
 if __name__ == "__main__":
