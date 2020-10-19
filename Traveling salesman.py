@@ -1,19 +1,22 @@
+"""
+Traveling salesman problem.
+Three algorithms are implemented to solve it: bruteforce (works for graphs which have Hamiltonian cycles at a given
+node, not only complete graphs), ant colony algorithm and genetic algorithm (Inver-over variation of genetic algorithm,
+to be precise).
+"""
+
 import networkx as nx
 from matplotlib import pyplot as plt
 import random
 import numpy as np
+from time import time
 
 
 def main():
     # generate some complete graphs
     graphs = []
-    for i in range(4, 10):
+    for i in range(4, 11):
         graphs.append(nx.complete_graph(i))
-
-    # generate 3 more simpler graphs with more nodes
-    graphs.append(nx.wheel_graph(10))
-    graphs.append(nx.wheel_graph(11))
-    graphs.append(nx.connected_caveman_graph(3, 4))
 
     print('Number of graphs: ', len(graphs))
 
@@ -31,14 +34,113 @@ def main():
         nx.draw_networkx(graph, pos, with_labels=True, font_weight='bold')
         nx.draw_networkx_edge_labels(graph, pos, edge_labels=labels)
 
-        #plt.show()
-        plt.savefig(str(graph.number_of_nodes()) + ' nodes.png')
+        plt.show()
+        #plt.savefig(str(graph.number_of_nodes()) + ' nodes.png')
     '''
-    # solving and synthetic testing
-    print(bruteforce(graphs[5], 1))
-    #ant_colony(graphs[5], 0, number_of_ants=9, alpha=0.2)
-    #print(graphs[5].edges.data())
-    print(genetic_algorithm(graphs[5], 1, iterations_number=100, population_size=20))
+
+    # solve non-complete graphs via bruteforce
+    non_complete_graphs = []
+    non_complete_graphs.append(nx.wheel_graph(10))
+    non_complete_graphs.append(nx.wheel_graph(11))
+    non_complete_graphs.append(nx.connected_caveman_graph(3, 4))
+    for graph in non_complete_graphs:
+        for (u, v) in graph.edges():
+            graph.edges[u, v]['weight'] = random.randint(1, 30)
+        print("Non-complete graph: ", bruteforce(graph, 0))
+
+    print("Bruteforce: ", bruteforce(graphs[5], 1))
+    print("Ant colony: ", ant_colony(graphs[5], 1, number_of_ants=100, alpha=0.5, beta=0.5, pheromone_evaporation_coefficient=0.1))
+    print("Genetic: ", genetic_algorithm(graphs[5], 1, iterations_number=100, population_size=20))
+
+    # Synthetic testing.
+
+    # lists of lists [time, path_length, nodes_quantity]
+    test_metrics_bruteforce = []
+    test_metrics_ant_colony = []
+    test_metrics_genetic = []
+    for graph in graphs:
+        nodes_number = len(graph.nodes)
+        start_time = time()
+        length, _, _ = bruteforce(graph, 0)
+        finish_time = time()
+        test_metrics_bruteforce.append([length, finish_time - start_time, nodes_number])
+
+        start_time = time()
+        length, _, _ = ant_colony(graph, 0, number_of_ants=100, alpha=0.5, beta=0.5, pheromone_evaporation_coefficient=0.1)
+        finish_time = time()
+        test_metrics_ant_colony.append([length, finish_time - start_time, nodes_number])
+
+        start_time = time()
+        length, _ = genetic_algorithm(graph, 0, iterations_number=100, population_size=20)
+        finish_time = time()
+        test_metrics_genetic.append([length, finish_time - start_time, nodes_number])
+
+    # compare performance of all algorithms on 4-10 nodes.
+    test_metrics_bruteforce = np.array(test_metrics_bruteforce)
+    test_metrics_ant_colony = np.array(test_metrics_ant_colony)
+    test_metrics_genetic = np.array(test_metrics_genetic)
+
+    # plot time performance
+    plt.plot(test_metrics_bruteforce[:, 2], test_metrics_bruteforce[:, 1], color='green', label='bruteforce')
+    plt.plot(test_metrics_ant_colony[:, 2], test_metrics_ant_colony[:, 1], color='blue', label='ant colony')
+    plt.plot(test_metrics_genetic[:, 2], test_metrics_genetic[:, 1], color='red', label='genetic')
+    plt.legend()
+    plt.xlabel('Number of nodes')
+    plt.ylabel('Performance time, seconds')
+    plt.show()
+
+    # plot length of paths
+    plt.plot(test_metrics_bruteforce[:, 2], test_metrics_bruteforce[:, 0], color='green', label='bruteforce')
+    plt.plot(test_metrics_ant_colony[:, 2], test_metrics_ant_colony[:, 0], color='blue', label='ant colony')
+    plt.plot(test_metrics_genetic[:, 2], test_metrics_genetic[:, 0], color='red', label='genetic')
+    plt.legend()
+    plt.xlabel('Number of nodes')
+    plt.ylabel('Found length of path')
+    plt.show()
+
+
+    # compare ant colony alg to genetic alg on a huge number of nodes
+    graphs = []
+    for i in range(15, 120, 5):
+        graphs.append(nx.complete_graph(i))
+
+    for graph in graphs:
+        for (u, v) in graph.edges():
+            graph.edges[u, v]['weight'] = random.randint(1, 30)
+
+    test_metrics_ant_colony = []
+    test_metrics_genetic = []
+    for graph in graphs:
+        nodes_number = len(graph.nodes)
+
+        start_time = time()
+        length, _, _ = ant_colony(graph, 0, number_of_ants=100, alpha=0.5, beta=0.5,
+                                  pheromone_evaporation_coefficient=0.1)
+        finish_time = time()
+        test_metrics_ant_colony.append([length, finish_time - start_time, nodes_number])
+
+        start_time = time()
+        length, _ = genetic_algorithm(graph, 0, iterations_number=100, population_size=20)
+        finish_time = time()
+        test_metrics_genetic.append([length, finish_time - start_time, nodes_number])
+    test_metrics_ant_colony = np.array(test_metrics_ant_colony)
+    test_metrics_genetic = np.array(test_metrics_genetic)
+
+    # plot time performance
+    plt.plot(test_metrics_ant_colony[:, 2], test_metrics_ant_colony[:, 1], color='blue', label='ant colony')
+    plt.plot(test_metrics_genetic[:, 2], test_metrics_genetic[:, 1], color='red', label='genetic')
+    plt.legend()
+    plt.xlabel('Number of nodes')
+    plt.ylabel('Performance time, seconds')
+    plt.show()
+
+    # plot length of paths
+    plt.plot(test_metrics_ant_colony[:, 2], test_metrics_ant_colony[:, 0], color='blue', label='ant colony')
+    plt.plot(test_metrics_genetic[:, 2], test_metrics_genetic[:, 0], color='red', label='genetic')
+    plt.legend()
+    plt.xlabel('Number of nodes')
+    plt.ylabel('Found length of path')
+    plt.show()
 
 
 def bruteforce(graph: nx.Graph, start_and_end_node):
@@ -87,10 +189,10 @@ def bruteforce_helper(graph, start_and_end_node, current_node, path, path_length
     return
 
 
-def ant_colony(graph: nx.Graph, start_and_end_node, number_of_ants=3, alpha=1, beta=1,
+def ant_colony(graph: nx.Graph, start_and_end_node, number_of_ants=3, alpha=1.0, beta=1.0,
                pheromone_evaporation_coefficient=0.2, pheromone_by_ant_coefficient=1):
     """
-    One critical restriction is required for this algorithm: a graph must be complete.
+    !One critical restriction is required for this algorithm: a graph must be complete!
     Every ant finds a Hamiltonian path and leaves pheromone on the edge after every iteration.
     """
 
@@ -101,9 +203,8 @@ def ant_colony(graph: nx.Graph, start_and_end_node, number_of_ants=3, alpha=1, b
     nx.set_edge_attributes(graph, 1, 'pheromone')
 
     # create ants
-    ants_current_nodes = np.random.choice(graph.number_of_nodes(), number_of_ants, replace=False)
+    ants_current_nodes = np.random.choice(graph.number_of_nodes(), number_of_ants)
     start_and_end_nodes = ants_current_nodes.copy()
-    print(ants_current_nodes)
 
     # list of lists. Each list has nodes that are left for a particular ant
     ants_nodes_left = []
@@ -119,10 +220,8 @@ def ant_colony(graph: nx.Graph, start_and_end_node, number_of_ants=3, alpha=1, b
 
         # if an ant moved to a new node - we remove it
         for i, nodes_left in enumerate(ants_nodes_left):
-            print(ants_current_nodes[i])
             nodes_left.remove(ants_current_nodes[i])
 
-        probability_table_for_every_ant = []
         ants_next_nodes = []
 
         for i, ant_node in enumerate(ants_current_nodes):
@@ -150,17 +249,10 @@ def ant_colony(graph: nx.Graph, start_and_end_node, number_of_ants=3, alpha=1, b
 
                 probability_for_neighbors.append(probability_to_move_to_this_neighbor)
 
-            # Store all important information in the following format: (current node (ant), neighbors : their probabilities).
-            # It must be done to guarantee that it works even if graph.neighbors(ant) returns an unordered list.
-            info_of_ant = (ant_node, dict(zip(ant_neighbors, probability_for_neighbors)))
-            probability_table_for_every_ant.append(info_of_ant)
-            print(info_of_ant)
-
             if epoch == len(graph.nodes) - 1:
                 break
 
             next_node = np.random.choice(ant_neighbors, 1, p=probability_for_neighbors)[0]
-            print(next_node)
             ants_next_nodes.append(next_node)
 
         # Global update of pheromones.
@@ -170,17 +262,14 @@ def ant_colony(graph: nx.Graph, start_and_end_node, number_of_ants=3, alpha=1, b
             break
 
         # evaporation on all edges
-        print(graph.edges.data('pheromone'))
         for i in range(len(graph.nodes)):
             for j in range(i + 1, len(graph.nodes)):
                 graph.get_edge_data(i, j)['pheromone'] *= 1 - pheromone_evaporation_coefficient
-        print(graph.edges.data('pheromone'))
 
         # add pheromone to the edge which was chosen by an ant
         for i in range(len(ants_current_nodes)):
             edge = graph.get_edge_data(ants_current_nodes[i], ants_next_nodes[i])
             edge['pheromone'] += pheromone_by_ant_coefficient / edge['weight']
-        print(graph.edges.data('pheromone'))
 
         ants_current_nodes = ants_next_nodes
 
@@ -210,12 +299,10 @@ def ant_colony(graph: nx.Graph, start_and_end_node, number_of_ants=3, alpha=1, b
             candidate_nodes_and_edges.append((candidate_for_next_node, edge))
 
         next_node, edge = max(candidate_nodes_and_edges, key=lambda t: t[1]["pheromone"])
-        print(next_node)
         best_path_length += edge['weight']
         pheromone_collected += edge['pheromone']
         current_node = next_node
 
-    print(best_path_length, best_path, pheromone_collected)
     return best_path_length, best_path, pheromone_collected
 
 
@@ -236,9 +323,6 @@ def genetic_algorithm(graph: nx.Graph, start_and_end_node, population_size=5, it
     population = []
     for _ in range(population_size):
         population.append([start_and_end_node] + np.random.permutation(nodes).tolist() + [start_and_end_node])
-
-    print(nodes)
-    print(population)
 
     for iteration in range(iterations_number):
         for chr_idx, chromosome in enumerate(population):
@@ -303,7 +387,7 @@ def genetic_algorithm(graph: nx.Graph, start_and_end_node, population_size=5, it
 
     best_path_length, best_path = min(chromosome_fitnesses), \
                                   population[chromosome_fitnesses.index(min(chromosome_fitnesses))]
-    print(chromosome_fitnesses)
+
     return best_path_length, best_path
 
 
