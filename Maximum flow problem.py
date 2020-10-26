@@ -37,6 +37,7 @@ def main():
     for (u, v) in G.edges():
         G.edges[u, v]['flow'] = 0
     print(ford_fulkerson(G, 0, 5))
+    print(nx.algorithms.flow.maximum_flow(G, 0, 5))
 
     G2 = nx.Graph()
     G2.add_nodes_from([0, 1, 2, 3, 4, 5])
@@ -63,7 +64,14 @@ def main():
     for (u, v) in G2.edges():
         G2.edges[u, v]['flow'] = 0
     print(ford_fulkerson(G2, 0, 5))
+    print(nx.algorithms.flow.maximum_flow(G2, 0, 5))
 
+    pos = nx.spring_layout(G2)
+    labels = nx.get_edge_attributes(G2, 'capacity')
+    nx.draw_networkx(G2, pos, with_labels=True, font_weight='bold')
+    nx.draw_networkx_edge_labels(graphs[0], pos, edge_labels=labels)
+
+    plt.show()
     '''pos = nx.spring_layout(graphs[0])
     labels = nx.get_edge_attributes(graphs[0], 'capacity')
     nx.draw_networkx(graphs[0], pos, with_labels=True, font_weight='bold')
@@ -86,9 +94,16 @@ def ford_fulkerson(graph: nx.Graph, source_node, sink_node):
             all_possible_flows.append(possible_flow)
 
         min_possible_flow = min(all_possible_flows)
+        # update flow and reverse-edges flow
         for i in range(len(path) - 1):
-            #graph.edges[path[i], path[i + 1]]['flow'] -= min_possible_flow
-            graph.edges[path[i + 1], path[i]]['flow'] += min_possible_flow
+            graph.edges[path[i], path[i + 1]]['flow'] += min_possible_flow
+
+            if not graph.has_edge(path[i + 1], path[i]):
+                graph.add_edge(path[i + 1], path[i])
+                graph.edges[path[i + 1], path[i]]['capacity'] = graph.edges[path[i], path[i+1]]['capacity']
+                graph.edges[path[i + 1], path[i]]['flow'] = 0
+
+            graph.edges[path[i + 1], path[i]]['flow'] = graph.edges[path[i], path[i + 1]]['flow']
 
         max_flow += min_possible_flow
 
