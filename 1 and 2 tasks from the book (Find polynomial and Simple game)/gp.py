@@ -199,9 +199,7 @@ def evolve(pc,popsize,rankfunction,maxgen=500, mutationrate=0.1,breedingrate=0.4
 def getrankfunction(dataset):
     def rankfunction(population):
         scores=[(scorefunction(t,dataset),t) for t in population]
-        print(type(scores))
-        print(scores)
-        scores.sort()
+        scores = sorted(scores, key=lambda x: x[0])
         return scores
     return rankfunction
 
@@ -291,7 +289,7 @@ def tournament(pl):
 
     # Отсортировать и вернуть результаты
     z=zip(losses,pl)
-    z = sorted(z)#z.sort()
+    z = sorted(z, key=lambda x: x[0])#z.sort()
     return z
 
 winner=evolve(5,100,tournament,maxgen=50)
@@ -307,11 +305,11 @@ class humanplayer:
         for i in range(4):
             for j in range(4):
                 if (i, j) == me:
-                    print('O')
+                    print('O', end='')
                 elif (i, j) in others:
-                    print('X')
+                    print('X', end='')
                 else:
-                    print('.')
+                    print('.', end='')
             print()
 
         # Показать ходы, для справки
