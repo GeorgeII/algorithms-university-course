@@ -77,27 +77,27 @@ def main():
 
     print(result)
     print(y)
-    #plot_matrix(x, t, y)
+    plot_matrix(x, t, y)
 
 
     # ANALYTICAL SOLUTION
     def A_integrand(x, n):
-        return 1 * np.sin(np.sqrt((np.pi * n / 1)**2)) * x
+        return 1 * np.sin(np.sqrt((np.pi * n / 1)**2) * x)
     def A(n):
         return 2 / x_max * quad(A_integrand, 0, x_max, args=(n))[0]
 
     def B_integrand(x, n):
-        return 0 * np.sin(np.sqrt((np.pi * n / 1) ** 2)) * x
+        return 0 * np.sin(np.sqrt((np.pi * n / 1) ** 2) * x)
     def B(n):
         return 2 / x_max * quad(B_integrand, 0, x_max, args=(n))[0]
 
-    def C_integrand(y, n):
-        return 1 * np.sin(np.sqrt((np.pi * n / 1)**2)) * y
+    def C_integrand(t, n):
+        return 1 * np.sin(np.sqrt((np.pi * n / 1)**2) * t)
     def C(n):
         return 2 / t_max * quad(C_integrand, 0, t_max, args=(n))[0]
 
-    def D_integrand(y, n):
-        return 0 * np.sin(np.sqrt((np.pi * n / 1)**2)) * y
+    def D_integrand(t, n):
+        return 0 * np.sin(np.sqrt((np.pi * n / 1)**2) * t)
     def D(n):
         return 2 / t_max * quad(D_integrand, 0, t_max, args=(n))[0]
 
@@ -110,15 +110,21 @@ def main():
             u2 = 0
 
             for k in range(1, 20):
-                u1 += (A(k) * np.sinh(np.sqrt((np.pi * k / 1)**2)) * t_val / (np.sinh(np.sqrt((np.pi * k / 1)**2)) * t_max) + \
-                      B(k) * np.sinh(np.sqrt((np.pi * k / 1)**2)) * (t_max - t_val) / (np.sinh(np.sqrt((np.pi * k / 1)**2)) * t_max)) * \
-                      np.sin(np.sqrt((np.pi * k / 1)**2)) * x_val
+                u1 += (A(k) * np.sinh(np.sqrt((np.pi * k / 1)**2) * t_val) / np.sinh(np.sqrt((np.pi * k / 1)**2) * t_max) + \
+                      B(k) * np.sinh(np.sqrt((np.pi * k / 1)**2) * (t_max - t_val)) / np.sinh(np.sqrt((np.pi * k / 1)**2) * t_max)) * \
+                      np.sin(np.sqrt((np.pi * k / 1)**2) * x_val)
 
-                u2 += (C(k) * np.sinh(np.sqrt((np.pi * k / 1)**2)) * x_val) / (np.sinh(np.sqrt((np.pi * k / 1)**2)) * x_max) + \
-                      D(k) * np.sinh(np.sqrt((np.pi * k / 1)**2)) * (t_max - x_val) / (np.sin(np.sqrt((np.pi * k / 1)**2)) * x_max) * \
-                      np.sin(np.sqrt((np.pi * k / 1)**2)) * t_val
+                u2 += (C(k) * np.sinh(np.sqrt((np.pi * k / 1)**2) * x_val) / np.sinh(np.sqrt((np.pi * k / 1)**2) * x_max) + \
+                      D(k) * np.sinh(np.sqrt((np.pi * k / 1)**2) * (t_max - x_val)) / np.sinh(np.sqrt((np.pi * k / 1)**2) * x_max)) * \
+                      np.sin(np.sqrt((np.pi * k / 1)**2) * t_val)
 
             analytical_solution[i][j] = u1 + u2
+
+    # boundary conditions
+    analytical_solution[0, :] = 0
+    analytical_solution[:, 0] = 0
+    analytical_solution[-1, :] = 1
+    analytical_solution[:, -1] = 1
 
     print(analytical_solution.shape)
     plot_matrix(x, t, analytical_solution)
