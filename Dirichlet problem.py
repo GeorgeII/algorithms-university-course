@@ -105,7 +105,6 @@ def main():
 
     for i, x_val in enumerate(x):
         for j, t_val in enumerate(t):
-            print(i)
             u1 = 0
             u2 = 0
 
@@ -126,8 +125,8 @@ def main():
     analytical_solution[-1, :] = 1
     analytical_solution[:, -1] = 1
 
-    print(analytical_solution.shape)
     plot_matrix(x, t, analytical_solution)
+    print("Max residual: ", np.max(abs(y - analytical_solution)))
 
 
 def plot_matrix(x, t, y):
