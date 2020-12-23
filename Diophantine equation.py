@@ -37,7 +37,7 @@ def genetic_algo(initial_pool_size=5):
     # main source: http://masters.donntu.org/2011/fknt/gutsenko/library/article_3.htm
 
     initial_chromosome_pool = [initialize_chromosome() for _ in range(initial_pool_size)]
-    print(initial_chromosome_pool)
+    #print(initial_chromosome_pool)
 
     solutions_found = genetic_algo_helper(initial_chromosome_pool, 0)
 
@@ -47,7 +47,7 @@ def genetic_algo(initial_pool_size=5):
 
 
 def genetic_algo_helper(chromosome_pool,  steps_done, probability_to_mutate=0.2):
-    if steps_done >= 5:
+    if steps_done >= 50:
         return chromosome_pool
 
     pool_size = len(chromosome_pool)
