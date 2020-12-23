@@ -2,6 +2,7 @@ import numpy as np
 from scipy.integrate import quad
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import os
 
 
 def main():
@@ -38,6 +39,7 @@ def main():
 
     matrix_size = (x_number-2) * (t_number-2)
     A = np.zeros([matrix_size, matrix_size])
+
 
     np.fill_diagonal(A, c)
     i, j = np.indices(A.shape)
@@ -79,7 +81,7 @@ def main():
     print(y)
     plot_matrix(x, t, y)
 
-
+    
     # ANALYTICAL SOLUTION
     def A_integrand(x, n):
         return 1 * np.sin(np.sqrt((np.pi * n / 1)**2) * x)
@@ -127,6 +129,104 @@ def main():
 
     plot_matrix(x, t, analytical_solution)
     print("Max residual: ", np.max(abs(y - analytical_solution)))
+
+
+
+    # TRIANGLES MESH
+    for path in ['36', '440', '3912']:
+        solve_with_triangles(path)
+
+
+def solve_with_triangles(path_to_triangle_directory):
+    with open(path_to_triangle_directory + "/fp.txt") as f:
+        vertices = []
+        for line in f:
+            vertices.append(list(map(float, line.split())))
+
+    with open(path_to_triangle_directory + "/ft.txt") as f:
+        triangles_vertex_numbers = []
+        for line in f:
+            triangles_vertex_numbers.append(list(map(int, line.split()[:-1])))
+
+    # print(vertices)
+    # print(triangles_vertex_numbers)
+
+    triangles = []
+    for item in triangles_vertex_numbers:
+        triangles.append([vertices[item[0] - 1], vertices[item[1] - 1], vertices[item[2] - 1]])
+
+    # print(triangles)
+
+    def find_center(vertices):
+        x = sum(v[0] for v in vertices) / 3
+        y = sum(v[1] for v in vertices) / 3
+
+        return [x, y]
+
+    centers_of_triangles = list(map(find_center, triangles))
+    # print(centers_of_triangles)
+
+    neighbors = []
+    for points in triangles_vertex_numbers:
+        current_neighbors = []
+        for j, _ in enumerate(triangles_vertex_numbers):
+            # if these triangles have a common boundary
+            if len(set(triangles_vertex_numbers[j]).intersection(set(points))) == 2:
+                current_neighbors.append(j)
+
+        neighbors.append(current_neighbors)
+    # print(neighbors)
+    # print(len(neighbors))
+
+    boundaries = {}
+
+    for i, triangle in enumerate(triangles):
+        if len(neighbors[i]) == 2:
+            x_number = 0
+            y_number = 0
+
+            for number_of_vertex in triangles_vertex_numbers[i]:
+                if vertices[number_of_vertex - 1][0] == 1:
+                    x_number += 1
+
+                if vertices[number_of_vertex - 1][1] == 1:
+                    y_number += 1
+
+                if x_number == 2 or y_number == 2:
+                    boundaries[i] = 1
+                else:
+                    boundaries[i] = 0
+    # print(boundaries)
+
+    copy_of_triangles = triangles
+    number_of_iterations = 10000
+    result = [0] * len(triangles)
+
+    for _ in range(number_of_iterations):
+        triangles = copy_of_triangles
+
+        for i, triangle in enumerate(triangles):
+            if len(neighbors[i]) == 3:
+                result[i] = (result[neighbors[i][0]] + result[neighbors[i][1]] + result[neighbors[i][2]]) / 3
+            else:
+                result[i] = (result[neighbors[i][0]] + result[neighbors[i][1]] + boundaries[i]) / 3
+
+    # print(result)
+    # print(len(result))
+
+    fig, ax = plt.subplots()
+
+    x = [c[0] for c in centers_of_triangles]
+    t = [c[1] for c in centers_of_triangles]
+
+    ax.tricontourf(x, t, result)
+    cs = ax.tricontour(x, t, result)
+    ax.clabel(cs)
+    ax.set_title(str(len(triangles)) + " triangles")
+    fig.set_figwidth(4)
+    fig.set_figheight(4)
+    plt.show()
+
 
 
 def plot_matrix(x, t, y):
